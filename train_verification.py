@@ -64,7 +64,7 @@ if __name__ == "__main__":
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", type=str, default="Watchog")
+    parser.add_argument("--model", type=str, default="REVEAL+")
     parser.add_argument("--loss", type=str, default="CE")
     parser.add_argument("--reg_weight", type=float, default=1.0)
     parser.add_argument("--norm", type=str, default="batch_norm") 

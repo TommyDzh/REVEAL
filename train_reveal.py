@@ -15,7 +15,6 @@ from torch.nn import CrossEntropyLoss, BCEWithLogitsLoss
 from torch.utils.data import DataLoader, RandomSampler
 from transformers import BertTokenizer, BertForSequenceClassification, BertConfig, AutoTokenizer
 from transformers import AdamW, get_linear_schedule_with_warmup
-from accelerate import Accelerator
 
 
 torch.backends.cuda.matmul.allow_tf32 = True

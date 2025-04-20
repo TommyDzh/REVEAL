@@ -167,418 +167,28 @@ class BertForMultiOutputClassification(nn.Module):
 
 
 
-import torch.nn as nn
-class Verifier(nn.Module):
-
-    def __init__(self, module ="ffn", dropout=0.0, norm=None, input_size=1, num_layers=None):
-        super().__init__()
-        hidden_size = 768
-        input_size = input_size * hidden_size
-        self.module = module
-        if module == "ffn":
-            if norm is None or norm == "None":
-                self.ffn = nn.Sequential(
-                    nn.Linear(input_size, hidden_size),
-                    nn.ReLU(),
-                    nn.Dropout(dropout),)
-                if num_layers is None:
-                    num_layers = 2
-                for _ in range(num_layers-1):
-                    self.ffn.add_module(f"linear{_}", nn.Linear(hidden_size, hidden_size))
-                    self.ffn.add_module(f"relu{_}", nn.ReLU())
-                    self.ffn.add_module(f"dropout{_}", nn.Dropout(dropout))             
-                self.ffn.add_module("linear", nn.Linear(hidden_size, 1))
-            elif norm == "layer_norm":
-                self.ffn = nn.Sequential(
-                    nn.Linear(input_size, hidden_size),
-                    nn.LayerNorm(hidden_size),
-                    nn.SiLU(),
-                    nn.Dropout(dropout),
-                    nn.Linear(hidden_size, hidden_size),
-                    nn.LayerNorm(hidden_size),
-                    nn.SiLU(),
-                    nn.Dropout(dropout),
-                    nn.Linear(hidden_size, 1),
-                )
-            elif norm == "batch_norm":
-                if num_layers is None:
-                    self.ffn = nn.Sequential(
-                        nn.Linear(input_size, hidden_size),
-                        nn.BatchNorm1d(hidden_size),
-                        nn.SiLU(),
-                        nn.Dropout(dropout),
-                        nn.Linear(hidden_size, hidden_size),
-                        nn.BatchNorm1d(hidden_size),
-                        nn.SiLU(),
-                        nn.Dropout(dropout),
-                        nn.Linear(hidden_size, 1),
-                    )
-                else:
-                    self.ffn = nn.Sequential(
-                        nn.Linear(input_size, hidden_size),
-                        nn.BatchNorm1d(hidden_size),
-                        nn.SiLU(),
-                        nn.Dropout(dropout),)
-                    for _ in range(num_layers-1):
-                        self.ffn.add_module(f"linear{_}", nn.Linear(hidden_size, hidden_size))
-                        self.ffn.add_module(f"norm{_}", nn.BatchNorm1d(hidden_size))
-                        self.ffn.add_module(f"silu{_}", nn.SiLU())
-                        self.ffn.add_module(f"dropout{_}", nn.Dropout(dropout))             
-                    self.ffn.add_module("linear", nn.Linear(hidden_size, 1))                
-            else:
-                raise ValueError(f"Invalid norm: {norm}")
-        elif module.startswith("condition_ffn"):
-            self.pe = nn.Embedding(2, hidden_size)
-            if norm is None or norm == "None":
-                self.ffn = nn.Sequential(
-                    nn.Linear(2*hidden_size, hidden_size),
-                    nn.ReLU(),
-                    nn.Dropout(dropout),
-                    nn.Linear(hidden_size, hidden_size),
-                    nn.ReLU(),
-                    nn.Dropout(dropout),
-                    nn.Linear(hidden_size, 1),
-                )                
-                
-            elif norm == "layer_norm":
-                self.ffn = nn.Sequential(
-                    nn.Linear(2*hidden_size, hidden_size),
-                    nn.LayerNorm(hidden_size),
-                    nn.SiLU(),
-                    nn.Dropout(dropout),
-                    nn.Linear(hidden_size, hidden_size),
-                    nn.LayerNorm(hidden_size),
-                    nn.SiLU(),
-                    nn.Dropout(dropout),
-                    nn.Linear(hidden_size, 1),
-                )
-            elif norm == "batch_norm":
-                self.ffn = nn.Sequential(
-                    nn.Linear(2*hidden_size, hidden_size),
-                    nn.BatchNorm1d(hidden_size),
-                    nn.SiLU(),
-                    nn.Dropout(dropout),
-                    nn.Linear(hidden_size, hidden_size),
-                    nn.BatchNorm1d(hidden_size),
-                    nn.SiLU(),
-                    nn.Dropout(dropout),
-                    nn.Linear(hidden_size, 1),
-                )
-            else:
-                raise ValueError(f"Invalid norm: {norm}")
-        elif module.startswith("bilinear"):
-            if "share" in module:
-                self.ffn_1 = self.ffn_2  = nn.Sequential(
-                    nn.Linear(hidden_size, hidden_size),
-                    nn.BatchNorm1d(hidden_size),
-                    nn.SiLU(),
-                    nn.Dropout(dropout),
-                    nn.Linear(hidden_size, hidden_size),
-                    nn.BatchNorm1d(hidden_size),
-                    nn.SiLU(),
-                    nn.Dropout(dropout),
-                    nn.Linear(hidden_size, hidden_size),
-                )
-            else:
-                self.ffn_1 = nn.Sequential(
-                    nn.Linear(hidden_size, hidden_size),
-                    nn.BatchNorm1d(hidden_size),
-                    nn.SiLU(),
-                    nn.Dropout(dropout),
-                    nn.Linear(hidden_size, hidden_size),
-                    nn.BatchNorm1d(hidden_size),
-                    nn.SiLU(),
-                    nn.Dropout(dropout),
-                    nn.Linear(hidden_size, hidden_size),
-                )
-                self.ffn_2 = nn.Sequential(
-                    nn.Linear(hidden_size, hidden_size),
-                    nn.BatchNorm1d(hidden_size),
-                    nn.SiLU(),
-                    nn.Dropout(dropout),
-                    nn.Linear(hidden_size, hidden_size),
-                    nn.BatchNorm1d(hidden_size),
-                    nn.SiLU(),
-                    nn.Dropout(dropout),
-                    nn.Linear(hidden_size, hidden_size),
-                )
-            self.bilinear = nn.Bilinear(hidden_size, hidden_size, 1)
-        elif module.startswith("attention"):
-            self.pe = nn.Embedding(2, hidden_size)
-            self.attn = nn.MultiheadAttention(hidden_size, num_heads=12, batch_first=True)
-            self.layer_norm = nn.LayerNorm(hidden_size)
-            self.dropout = nn.Dropout(0.1)
-            self.ffn = nn.Sequential(
-            nn.Linear(hidden_size, hidden_size),
-            nn.ReLU(),
-            nn.Linear(hidden_size, hidden_size),
-        )
-            self.linear = nn.Linear(hidden_size, 1)
-            if norm is None or norm == "None":
-                self.norm = nn.Identity()
-            # Multi-head attention
-            elif norm == "layer_norm":
-                self.norm = nn.LayerNorm(hidden_size)
-            elif norm == "batch_norm":
-                self.norm = nn.BatchNorm1d(hidden_size)
-            else:
-                raise ValueError(f"Invalid norm: {norm}")
-        elif module.startswith("gate"):
-            self.gate = nn.Sequential(
-                    nn.Linear(2*hidden_size, hidden_size),
-                    nn.BatchNorm1d(hidden_size),
-                    nn.SiLU(),
-                    nn.Dropout(dropout),
-                    nn.Linear(hidden_size, hidden_size),
-                )
-            
-            if norm is None or norm == "None":
-                self.ffn = nn.Sequential(
-                    nn.Linear(hidden_size, hidden_size),
-                    nn.ReLU(),
-                    nn.Dropout(dropout),
-                    nn.Linear(hidden_size, hidden_size),
-                    nn.ReLU(),
-                    nn.Dropout(dropout),
-                    nn.Linear(hidden_size, 1),
-                )                
-                
-            elif norm == "layer_norm":
-                self.ffn = nn.Sequential(
-                    nn.Linear(hidden_size, hidden_size),
-                    nn.LayerNorm(hidden_size),
-                    nn.SiLU(),
-                    nn.Dropout(dropout),
-                    nn.Linear(hidden_size, hidden_size),
-                    nn.LayerNorm(hidden_size),
-                    nn.SiLU(),
-                    nn.Dropout(dropout),
-                    nn.Linear(hidden_size, 1),
-                )
-            elif norm == "batch_norm":
-                self.ffn = nn.Sequential(
-                    nn.Linear(hidden_size, hidden_size),
-                    nn.BatchNorm1d(hidden_size),
-                    nn.SiLU(),
-                    nn.Dropout(dropout),
-                    nn.Linear(hidden_size, hidden_size),
-                    nn.BatchNorm1d(hidden_size),
-                    nn.SiLU(),
-                    nn.Dropout(dropout),
-                    nn.Linear(hidden_size, 1),
-                )
-            else:
-                raise ValueError(f"Invalid norm: {norm}")
-
-    def forward(
-        self,
-        embs
-    ):
-        embs_dim = len(embs.size())
-        if embs_dim == 3:
-            B, L, D = embs.size()
-            embs = embs.reshape(B*L, D)
-            
-        if "ffn" in self.module:
-            if self.module.startswith("condition_ffn"):
-                B, D = embs.size()
-                context, target = embs[:, :D//2], embs[:, D//2:]
-                context = context + self.pe(torch.zeros(B, device=embs.device, dtype=torch.long))
-                target = target + self.pe(torch.ones(B, device=embs.device, dtype=torch.long))
-                embs = torch.cat([context, target], dim=-1)
-
-            scores = self.ffn(embs)
-            
-            if embs_dim == 3:
-                scores = scores.reshape(B, L, 1)
-            
-        elif self.module.startswith("bilinear"):
-            B, D = embs.size()
-            context, target = embs[:, :D//2], embs[:, D//2:]
-            scores = self.bilinear(self.ffn_1(context), self.ffn_2(target))
-        elif self.module == "attention_binary":
-            B, D = embs.size()
-            key, query = embs[:, :D//2], embs[:, D//2:] # permuatation as query
-            query = query.unsqueeze(1) # (B, 1, D//2)
-            key = value = torch.cat([query+self.pe(torch.zeros(B, device=embs.device, dtype=torch.long).unsqueeze(1)), 
-                                       key.unsqueeze(1) + self.pe(torch.ones(B, device=embs.device, dtype=torch.long)).unsqueeze(1)], dim=1) # (B, 2, D//2)
-            query = self.attn(query, key, value)[0].squeeze(1) # (B, D//2)
-            embs = embs[:, D//2:] + self.dropout(query)
-            embs = self.layer_norm(embs)
-            embs = embs + self.dropout(self.ffn(embs))
-            embs = self.norm(embs)
-            scores = self.linear(embs)
-        elif self.module == "gate":
-            B, D = embs.size()
-            context, target = embs[:, :D//2], embs[:, D//2:]
-            gate = torch.sigmoid(self.gate(embs))
-            embs =  gate * target
-            scores = self.ffn(embs)
-        return scores  # (loss), logits, (hidden_states), (attentions)
 
 
 
-
-class VerifierSep(nn.Module):
-
-    def __init__(self, module ="ffn", dropout=0.0, norm=None, input_size=1, num_layers=None):
-        super().__init__()
-        hidden_size = 768
-        input_size = input_size * hidden_size
-        self.module = module
-        if module == "ffn":
-            if norm == "batch_norm":
-                if num_layers is None:
-                    self.ffn = nn.Sequential(
-                        nn.Linear(input_size, hidden_size),
-                        nn.BatchNorm1d(hidden_size),
-                        nn.SiLU(),
-                        nn.Dropout(dropout),
-                        nn.Linear(hidden_size, hidden_size),
-                        nn.BatchNorm1d(hidden_size),
-                        nn.SiLU(),
-                        nn.Dropout(dropout),
-                        nn.Linear(hidden_size, hidden_size),
-                    )
-                    self.linear = nn.Linear(hidden_size, 1)
-        elif module == "ffn_fix":
-            self.ffn = nn.Sequential(
-                nn.Linear(input_size, hidden_size),
-                nn.BatchNorm1d(hidden_size),
-                nn.SiLU(),
-                nn.Dropout(dropout),
-                nn.Linear(hidden_size, hidden_size),
-                nn.BatchNorm1d(hidden_size),
-                nn.SiLU(),
-                nn.Dropout(dropout),
-            )
-            self.linear = nn.Linear(hidden_size, 1)  
-        elif module == "ffn_fix_3":
-            self.ffn = nn.Sequential(
-                nn.Linear(input_size, hidden_size),
-                nn.BatchNorm1d(hidden_size),
-                nn.SiLU(),
-                nn.Dropout(dropout),
-                nn.Linear(hidden_size, hidden_size),
-                nn.BatchNorm1d(hidden_size),
-                nn.SiLU(),
-                nn.Dropout(dropout),
-                nn.Linear(hidden_size, hidden_size),
-                nn.BatchNorm1d(hidden_size),
-                nn.SiLU(),
-                nn.Dropout(dropout),
-            )
-            self.linear = nn.Linear(hidden_size, 1)         
-        elif module == "ffn_fix_4":
-            self.ffn = nn.Sequential(
-                nn.Linear(input_size, hidden_size),
-                nn.BatchNorm1d(hidden_size),
-                nn.SiLU(),
-                nn.Dropout(dropout),
-                nn.Linear(hidden_size, hidden_size),
-                nn.BatchNorm1d(hidden_size),
-                nn.SiLU(),
-                nn.Dropout(dropout),
-                nn.Linear(hidden_size, hidden_size),
-                nn.BatchNorm1d(hidden_size),
-                nn.SiLU(),
-                nn.Dropout(dropout),
-                nn.Linear(hidden_size, hidden_size),
-            )
-            self.linear = nn.Linear(hidden_size, 1)
-
-    def forward(
-        self,
-        embs,
-        return_embs=False,
-    ):
-        embs_dim = len(embs.size())
-        if embs_dim == 3:
-            B, L, D = embs.size()
-            embs = embs.reshape(B*L, D)
-            
-        if "ffn" in self.module:
-
-            embs = self.ffn(embs)
-            scores = self.linear(embs)
-            
-            if embs_dim == 3:
-                scores = scores.reshape(B, L, 1)
-            
-        if return_embs:
-            return scores, embs
-        else:
-            return scores
-        
         
 class VerifierMulti(nn.Module):
     # explicitly set pos/neg examples (2-class classification)
-    def __init__(self, module ="ffn", dropout=0.0, norm=None, input_size=1, num_layers=None):
+    def __init__(self, module ="ffn", dropout=0.0, norm="batch_norm", input_size=1, num_layers=None):
         super().__init__()
         hidden_size = 768
         input_size = input_size * hidden_size
         self.module = module
-        if module == "ffn":
-            if norm == "batch_norm":
-                if num_layers is None:
-                    self.ffn = nn.Sequential(
-                        nn.Linear(input_size, hidden_size),
-                        nn.BatchNorm1d(hidden_size),
-                        nn.SiLU(),
-                        nn.Dropout(dropout),
-                        nn.Linear(hidden_size, hidden_size),
-                        nn.BatchNorm1d(hidden_size),
-                        nn.SiLU(),
-                        nn.Dropout(dropout),
-                        nn.Linear(hidden_size, hidden_size),
-                    )
-                    self.linear = nn.Linear(hidden_size, 2)
-                else:
-                    self.ffn = nn.Sequential(
-                        nn.Linear(input_size, hidden_size),
-                        nn.BatchNorm1d(hidden_size),
-                        nn.SiLU(),
-                        nn.Dropout(dropout),)
-                    for _ in range(num_layers-2):
-                        self.ffn.add_module(f"linear{_}", nn.Linear(hidden_size, hidden_size))
-                        self.ffn.add_module(f"norm{_}", nn.BatchNorm1d(hidden_size))
-                        self.ffn.add_module(f"silu{_}", nn.SiLU())
-                        self.ffn.add_module(f"dropout{_}", nn.Dropout(dropout))   
-                    self.ffn.add_module("linear", nn.Linear(hidden_size, hidden_size))
-                    self.linear = nn.Linear(hidden_size, 2)
-        elif module == "ffn_fix":
-            if norm == "batch_norm":
-                self.ffn = nn.Sequential(
-                    nn.Linear(input_size, hidden_size),
-                    nn.BatchNorm1d(hidden_size),
-                    nn.SiLU(),
-                    nn.Dropout(dropout),
-                    nn.Linear(hidden_size, hidden_size),
-                    nn.BatchNorm1d(hidden_size),
-                    nn.SiLU(),
-                    nn.Dropout(dropout),
-                )
-                self.linear = nn.Linear(hidden_size, 2)
-            elif norm == "layer_norm":
-                self.ffn = nn.Sequential(
-                    nn.Linear(input_size, hidden_size),
-                    nn.LayerNorm(hidden_size),
-                    nn.SiLU(),
-                    nn.Dropout(dropout),
-                    nn.Linear(hidden_size, hidden_size),
-                    nn.LayerNorm(hidden_size),
-                    nn.SiLU(),
-                    nn.Dropout(dropout),
-                )
-                self.linear = nn.Linear(hidden_size, 2)
-        elif module == "ffn_fix_1":
+        if module == "ffn_fix":
             self.ffn = nn.Sequential(
                 nn.Linear(input_size, hidden_size),
                 nn.BatchNorm1d(hidden_size),
                 nn.SiLU(),
                 nn.Dropout(dropout),
+                nn.Linear(hidden_size, hidden_size),
+                nn.BatchNorm1d(hidden_size),
+                nn.SiLU(),
+                nn.Dropout(dropout),
             )
-            self.linear = nn.Linear(hidden_size, 2)    
         elif module == "ffn_fix_3":
             self.ffn = nn.Sequential(
                 nn.Linear(input_size, hidden_size),
@@ -594,9 +204,8 @@ class VerifierMulti(nn.Module):
                 nn.SiLU(),
                 nn.Dropout(dropout),
             )
-            self.linear = nn.Linear(hidden_size, 2)               
-        elif module == "linear":
-            self.linear = nn.Linear(input_size, 2)
+        self.linear = nn.Linear(hidden_size, 2)               
+
 
     def forward(
         self,
@@ -620,8 +229,7 @@ class VerifierMulti(nn.Module):
             
             if embs_dim == 3:
                 scores = scores.reshape(B, L, 1)
-        elif self.module == "linear":
-            scores = self.linear(embs)
+
         if return_embs:
             return scores, embs
         else:

@@ -36,17 +36,37 @@ We provide the raw CSV data for **GitTablesDB** in `./data/gt-semtab22-dbpedia-a
 
 The **SOTAB-CTA** and **SOTAB-CPA** datasets can be downloaded from the [official SOTAB repository](https://webdatacommons.org/structureddata/sotab/).
 
+> **Note:** The dataset names used in our paper and the corresponding task identifiers in the codebase are listed below:
 
+| Paper Name        | Codebase Task Name                     |
+|-------------------|-----------------------------------------|
+| GitTablesDB       | `gt-semtab22-dbpedia-all`              |
+| GitTablesSC       | `gt-semtab22-schema-property-all`      |
+| SOTAB-CTA         | `sotab`                                |
+| SOTAB-CPA         | `sotab-re`                             |
+| WikiTables-CTA    | `turl`                                 |
+| WikiTables-CPA    | `turl-re`                              |
 
 ### 🔥 Training
-To train the **REVEAL** model, run:
-```train
-python run_train_reveal.py
-```
+1. Train **REVEAL** model, run:
+    ```train
+    python run_train_reveal.py
+    ```
+2. Construct data for verification model
+    ```train
+    python construct_verification_data.py --task [dataset_name] --best_dict_path [dir_path]
+    ```
+    - `dataset_name`: Name of the dataset/task (e.g., `gt-semtab22-dbpedia-all`, `sotab`)
+    - `dir_path`: Path to the trained REVEAL model checkpoint
 
+3. Train **REVEAL+** model, run:
+    ```train
+    python run_train_verification.py
+    ```
 
 ## 🙏 Acknowledgement
 This project builds upon ideas and components from the following prior works:
 - [Watchog](https://github.com/megagonlabs/watchog)
 - [Doduo](https://github.com/megagonlabs/doduo)
+
 We thank the authors for open-sourcing their implementations.

@@ -217,7 +217,7 @@ if __name__ == "__main__":
 
 
     print(tag_name)
-    file_path = os.path.join(args.data_path, "Watchog", "outputs", tag_name)
+    file_path = os.path.join("./model", args.model, "outputs", tag_name)
 
     dirpath = os.path.dirname(file_path)
     if not os.path.exists(dirpath):
@@ -234,6 +234,7 @@ if __name__ == "__main__":
     setattr(args, 'hidden_dropout_prob', args.dropout_prob)
     setattr(args, 'shortcut_name', args.shortcut_name)
     setattr(args, 'num_labels', args.num_classes)
+    setattr(args, 'projector', 768) # BERT hidden size
     set_seed(args.random_seed)
     
     
@@ -252,22 +253,15 @@ if __name__ == "__main__":
                                                 use_attention_mask=args.use_attention_mask)
             
 
-        if not args.from_scratch:
-            pre_model, trainset = load_checkpoint(ckpt)
-            model.bert = pre_model.bert
-            tokenizer = trainset.tokenizer
-            del pre_model
+
         if not args.reset_pooler and args.pool_version != 'v0':
             raise ValueError("pooler version must be v0 when not resetting")
         if args.reset_pooler:
-            config = BertConfig.from_pretrained(lm_mp[ckpt['hp'].lm])
-            model.bert.pooler = BertMultiPooler(config.hidden_size, version=args.pool_version).to(device)
+            model.bert.pooler = BertMultiPooler(args.projector).to(device)
             print("Reset pooler layer")
 
         if (task == "sotab-re" or task == "turl-re") and args.colpair:
-            config = BertConfig.from_pretrained(lm_mp[ckpt['hp'].lm])
-            model.bert.pooler = BertMultiPairPooler(config.hidden_size).to(device)
-            # model.bert.token_type_embeddings = torch.nn.Embedding(3, model.bert.config.hidden_size).to(device)
+            model.bert.pooler = BertMultiPairPooler(args.projector).to(device)
             print("Use new token_type_embeddings for column-pair pooling")
         padder = collate_fn(tokenizer.pad_token_id)
 
@@ -339,7 +333,6 @@ if __name__ == "__main__":
             dataset_cls = GittablesTablewiseIterateMMRDataset
             train_dataset = dataset_cls(cv=repeat_i,
                                         split="train",
-                                        src=src,
                                         tokenizer=tokenizer,
                                         max_length=max_length,
                                         gt_only='all' not in task,
@@ -347,13 +340,13 @@ if __name__ == "__main__":
                                         base_dirpath=os.path.join(args.data_path, args.task),
                                         small_tag=small_tag,
                                         max_unlabeled=args.max_unlabeled,
-                                        random_sample=args.random_sample,
                                         lbd=0.5)
+        
             valid_dataset = dataset_cls(cv=repeat_i,
-                                        split="valid", src=src,
+                                        split="valid", 
                                         tokenizer=tokenizer,
                                         max_length=max_length,
-                                        gt_only='all' not in task or args.unlabeled_train_only,
+                                        gt_only='all' not in task,
                                         device=device,
                                         base_dirpath=os.path.join(args.data_path, args.task),
                                         small_tag=small_tag,
@@ -370,13 +363,13 @@ if __name__ == "__main__":
                                             batch_size=batch_size,
                                         collate_fn=padder)
             test_dataset = dataset_cls(cv=repeat_i,
-                                    split="test", src=src,
+                                        split="test", 
                                         tokenizer=tokenizer,
                                         max_length=max_length,
                                         gt_only='all' not in task or args.unlabeled_train_only,
                                         device=device,
                                         base_dirpath=os.path.join(args.data_path, args.task),
-                                        small_tag=args.small_tag,
+                                        small_tag=small_tag,
                                         max_unlabeled=args.max_unlabeled,
                                         lbd=0.5)
             test_dataloader = DataLoader(test_dataset,
@@ -422,6 +415,7 @@ if __name__ == "__main__":
                             max_length=max_length,
                             base_dirpath=os.path.join(args.data_path, args.task),
                             device=device,
+                            max_unlabeled=args.max_unlabeled,
                             lbd=0.5)
 
             test_dataloader = DataLoader(test_dataset,

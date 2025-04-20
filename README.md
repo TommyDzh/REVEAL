@@ -1,43 +1,52 @@
 # Retrieve-and-Verify: A Table Context Selection Framework for Accurate Column Annotations
 
-This repository contains the codebase of our paper "Retrieve-and-Verify: A Table Context Selection Framework for Accurate Column Annotations".
+This repository contains the official codebase for our paper:  
+**"Retrieve-and-Verify: A Table Context Selection Framework for Accurate Column Annotations."**
 
-In this work, we present a novel retrieve-and-verify context selection framework for accurate column annotation, including Column Type Annotation (CTA) task and Column Property Annotation (CPA) or Column Relation Annotation. The frameworks consists of two methods: **REVEAL** and **REVEAL+**. 
+In this work, we propose a novel retrieve-and-verify context selection framework for accurate column annotation, covering both **Column Type Annotation (CTA)** and **Column Property Annotation (CPA)** tasks (also referred to as Column Relation Annotation). The framework consists of two methods: **REVEAL** and **REVEAL+**.
 
-REVEAL consists of a retrieval stage for selecting compact, informative column context for a target  by balancing semantic relevance and diversity, and develop
- context-aware encoding techniques to differentiate target and context columns for learning contextualized column representation.   
+- **REVEAL** includes a retrieval stage that selects a compact and informative subset of column context for a given target column by balancing semantic relevance and diversity. It also introduces context-aware encoding techniques to distinguish target and context columns, enabling effective contextualized column representations.
 
- REVEAL+ extends REVEAL by introducing a verification model that refines the selected context by
- directly estimating its quality for specific annotation tasks, through
- a novel formulation of column context verification as a supervised
- classification task. To ensure efficiency,  REVEAL+ incorporates a top-down
- inference method that reduces the search space for high-quality
- context subsets from exponential to quadratic complexity. 
+- **REVEAL+** extends REVEAL by introducing a lightweight verification model that refines the selected context by directly estimating its quality for a specific annotation task. It formulates column context verification as a supervised classification problem, and incorporates a top-down inference strategy to efficiently reduce the search space for high-quality context subsets from exponential to quadratic complexity.
 
+---
 
- ## Requirements
+## 🚀 Requirements
 
-To install requirements:
+To install the required dependencies:
 
-```setup
+```bash
 pip install -r requirements.txt
 ```
 
-## Datasets
+##  📊 Datasets
+The following table summarizes the datasets used in our experiments:
 
 | Benchmark     | # Tables | # Types | Total # Cols | # Labeled Cols | Min/Max/Avg Cols per Table |
 |---------------|----------|---------|---------------|----------------|-----------------------------|
-| \gitdb        | 3,737    | 101     | 45,304        | 5,433          | 1 / 193 / 12.1              |
-| \gitsc        | 2,853    | 53      | 34,148        | 3,863          | 1 / 150 / 12.0              |
-| \sotabcta     | 24,275   | 91      | 195,543       | 64,884         | 3 / 30 / 8.1                |
-| \sotabcpa     | 20,686   | 176     | 196,831       | 74,216         | 3 / 31 / 9.5                |
-| \wikicta      | 406,706  | 255     | 2,393,027     | 654,670        | 1 / 99 / 5.9                |
-| \wikicpa      | 55,970   | 121     | 306,265       | 62,954         | 2 / 38 / 5.5                |
-
-The data for SOTAB-CTA and SOTAB-CPA can be downloaded [here](https://webdatacommons.org/structureddata/sotab/).
+| GitTablesDB        | 3,737    | 101     | 45,304        | 5,433          | 1 / 193 / 12.1              |
+| GitTablesSC        | 2,853    | 53      | 34,148        | 3,863          | 1 / 150 / 12.0              |
+| SOTAB-CTA     | 24,275   | 91      | 195,543       | 64,884         | 3 / 30 / 8.1                |
+| SOTAB-CPA     | 20,686   | 176     | 196,831       | 74,216         | 3 / 31 / 9.5                |
+| WikiTable-CTA      | 406,706  | 255     | 2,393,027     | 654,670        | 1 / 99 / 5.9                |
+| WikiTable-CPA     | 55,970   | 121     | 306,265       | 62,954         | 2 / 38 / 5.5                |
 
 
+We provide the raw CSV data for **GitTablesDB** in `./data/gt-semtab22-dbpedia-all` and for **GitTablesSC** in `./data/gt-semtab22-schema-property-all`.
 
-## Acknowledgement
+The **SOTAB-CTA** and **SOTAB-CPA** datasets can be downloaded from the [official SOTAB repository](https://webdatacommons.org/structureddata/sotab/).
 
-In code implmentation, we refer to [Watchog](https://github.com/megagonlabs/watchog) and [Doduo](https://github.com/megagonlabs/doduo). 
+
+
+### 🔥 Training
+To train the **REVEAL** model, run:
+```train
+python run_train_reveal.py
+```
+
+
+## 🙏 Acknowledgement
+This project builds upon ideas and components from the following prior works:
+- [Watchog](https://github.com/megagonlabs/watchog)
+- [Doduo](https://github.com/megagonlabs/doduo)
+We thank the authors for open-sourcing their implementations.

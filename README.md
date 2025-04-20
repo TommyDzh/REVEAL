@@ -48,7 +48,7 @@ The **SOTAB-CTA** and **SOTAB-CPA** datasets can be downloaded from the [officia
 | WikiTables-CPA    | `turl-re`                              |
 
 ### 🔥 Training
-1. Train **REVEAL** model, run:
+1. Train and evaluate **REVEAL** model, run:
     ```train
     python run_train_reveal.py
     ```
@@ -59,7 +59,7 @@ The **SOTAB-CTA** and **SOTAB-CPA** datasets can be downloaded from the [officia
     - `dataset_name`: Name of the dataset/task (e.g., `gt-semtab22-dbpedia-all`, `sotab`)
     - `dir_path`: Path to the trained REVEAL model checkpoint
 
-3. Train **REVEAL+** model, run:
+3. Train evaluate **REVEAL+** model, run:
     ```train
     python run_train_verification.py
     ```

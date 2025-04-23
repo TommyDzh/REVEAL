@@ -65,8 +65,4 @@ The **SOTAB-CTA** and **SOTAB-CPA** datasets can be downloaded from the [officia
     ```
 
 ## 🙏 Acknowledgement
-This project builds upon ideas and components from the following prior works:
-- [Watchog](https://github.com/megagonlabs/watchog)
-- [Doduo](https://github.com/megagonlabs/doduo)
-
-We thank the authors for open-sourcing their implementations.
+We acknowledge the open-sourced implementations of [Watchog](https://github.com/megagonlabs/watchog) and [Doduo](https://github.com/megagonlabs/doduo), which provide basic componenents partially used in our implementation.

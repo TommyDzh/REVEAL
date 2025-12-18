@@ -32,9 +32,9 @@ The following table summarizes the datasets used in our experiments:
 | WikiTable-CPA     | 55,970   | 121     | 306,265       | 62,954         | 2 / 38 / 5.5                |
 
 
-We provide the raw CSV data for **GitTablesDB** in `./data/gt-semtab22-dbpedia-all` and for **GitTablesSC** in `./data/gt-semtab22-schema-property-all`.
+We make our processed data for all 6 datasets publicly available on [Huggingface Repo](https://huggingface.co/datasets/Tommy-DING/REVEAL).
 
-The **SOTAB-CTA** and **SOTAB-CPA** datasets can be downloaded from the [official SOTAB repository](https://webdatacommons.org/structureddata/sotab/).
+The original **SOTAB-CTA** and **SOTAB-CPA** datasets can be downloaded from the [official SOTAB repository](https://webdatacommons.org/structureddata/sotab/).
 
 > **Note:** The dataset names used in our paper and the corresponding task identifiers in the codebase are listed below:
 

@@ -104,11 +104,10 @@ class BertMultiPairPooler(nn.Module):
 
 class BertForMultiOutputClassification(nn.Module):
 
-    def __init__(self, hp, device='cuda', lm='roberta', col_pair='None', use_attention_mask=True, output_hidden_states=False, type_vocab_size=2, pair_output=False):
+    def __init__(self, num_class, device='cuda', lm='roberta', col_pair='None', use_attention_mask=True,  output_hidden_states=False, projector_dim=768, dropout_prob=0.0, type_vocab_size=2, pair_output=False):
         
         super().__init__()
-        self.hp = hp
-        self.bert = AutoModel.from_pretrained(lm_mp[lm], output_hidden_states=output_hidden_states)
+        self.bert = AutoModel.from_pretrained(lm, output_hidden_states=output_hidden_states)
         # role embedding initialization
         self.bert.config.type_vocab_size = type_vocab_size
         self.bert.embeddings = BertEmbeddings(self.bert.config)
@@ -126,12 +125,11 @@ class BertForMultiOutputClassification(nn.Module):
             pooler.dense.bias.copy_(self.bert.pooler.dense.bias)
             self.bert.pooler = pooler
             
-        self.projector = nn.Linear(hidden_size, hp.projector)
+        self.projector = nn.Linear(hidden_size, projector_dim)
         '''Require all models using the same CLS token'''
-        self.cls_token_id = AutoTokenizer.from_pretrained(lm_mp[lm]).cls_token_id
-        self.num_labels = hp.num_labels
-        self.dropout = nn.Dropout(hp.hidden_dropout_prob)
-        self.classifier = nn.Linear(hidden_size, self.hp.num_labels)
+        self.cls_token_id = AutoTokenizer.from_pretrained(lm).cls_token_id
+        self.dropout = nn.Dropout(dropout_prob)
+        self.classifier = nn.Linear(hidden_size, num_class)
     
     def load_from_CL_model(self, model):
         '''load from models pre-trained with contrastive learning'''

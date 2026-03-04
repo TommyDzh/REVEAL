@@ -237,7 +237,7 @@ if __name__ == "__main__":
     set_seed(args.random_seed)
     
     
-    tokenizer = BertTokenizer.from_pretrained(shortcut_name)
+    tokenizer = BertTokenizer.from_pretrained(lm_mp[shortcut_name])
     ts_micro_f1_all = defaultdict(list)
     ts_macro_f1_all = defaultdict(list)
     test_time = []
@@ -247,8 +247,8 @@ if __name__ == "__main__":
     # ==============================repeat loop start================================
     for repeat_i in range(args.repeat):
         print("Starting loop", repeat_i)
-        model = BertForMultiOutputClassification(args, device=device, 
-                                                lm="bert", 
+        model = BertForMultiOutputClassification(args.num_classes, device=device, 
+                                                lm=lm_mp[shortcut_name], 
                                                 use_attention_mask=args.use_attention_mask)
             
 

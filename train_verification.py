@@ -26,7 +26,7 @@ torch.backends.cuda.matmul.allow_tf32 = True
 
 from accelerate import Accelerator, DistributedDataParallelKwargs
 from src.dataset import  VerificationBinaryFastDataset
-from src.model import VerifierMulti, VerifierSep, BertMultiPairPooler, BertForMultiOutputClassification
+from src.model import VerifierMulti, BertMultiPairPooler, BertForMultiOutputClassification
 from src.model import lm_mp
 from src.utils import f1_score_multilabel,  veri_collate_fn
 from src.utils import task_num_class_dict
@@ -72,9 +72,9 @@ if __name__ == "__main__":
     parser.add_argument("--max_list_length", type=int, default=10)
     parser.add_argument("--veri_module", type=str, default="ffn") 
     parser.add_argument("--context", type=str, default=None) 
-    parser.add_argument("--data_version", type=str, default="mmr0.5_dp1_context_ln_hard") 
+    parser.add_argument("--data_version", type=str, default=None) 
 
-    parser.add_argument("--test_version", type=str, default="mmr0.5_dp1_context_ln") # None: only drop up to 2/half columns; 2: drop up to 1 columns
+    parser.add_argument("--test_version", type=str, default=None) # None: only drop up to 2/half columns; 2: drop up to 1 columns
     parser.add_argument("--fast_eval", type=bool, default=False) 
     
     parser.add_argument("--use_attention_mask", type=bool, default=True)
@@ -275,9 +275,9 @@ if __name__ == "__main__":
     set_seed(args.random_seed)
     
     
-    tokenizer = BertTokenizer.from_pretrained(shortcut_name)
-    model = BertForMultiOutputClassification(args, device=device, 
-                                            lm="bert", 
+    tokenizer = BertTokenizer.from_pretrained(lm_mp[args.shortcut_name])
+    model = BertForMultiOutputClassification(args.num_classes, device=device, 
+                                            lm=lm_mp[args.shortcut_name], 
                                             use_attention_mask=args.use_attention_mask)
 
     if (task == "sotab-re" or task == "turl-re") and args.colpair:
@@ -317,6 +317,7 @@ if __name__ == "__main__":
         valid_logits = valid_dataset['logits']
         valid_class = valid_dataset['class']
         valid_embs_target = valid_dataset['target_embs'] if 'target_embs' in valid_dataset else None
+        valid_col_num = valid_dataset['col_num']
             
 
 

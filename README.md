@@ -63,6 +63,8 @@ The original **SOTAB-CTA** and **SOTAB-CPA** datasets can be downloaded from the
     ```train
     python run_train_verification.py
     ```
+## Citation
+
 
 ## 🙏 Acknowledgement
 We acknowledge the open-sourced implementations of [Watchog](https://github.com/megagonlabs/watchog) and [Doduo](https://github.com/megagonlabs/doduo), which provide basic componenents partially used in our implementation.

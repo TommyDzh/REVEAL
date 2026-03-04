@@ -399,7 +399,7 @@ class SotabRelExtIterateMMRDataset(Dataset):
             
         else:
             sb_model = SentenceTransformer("all-mpnet-base-v2")               
-            self.df = pd.read_csv(os.path.join(base_dirpath, f"{split}_cpa.csv"))
+            self.df = pd.read_csv(os.path.join(base_dirpath, f"{split}.csv"))
             self.df['data'] = self.df['data'].astype(str)
 
             # For learning curve
@@ -521,7 +521,7 @@ class TURLColTypeTablewiseIterateMMRDataset(Dataset):
 
         encoded_df_path = os.path.join(base_dirpath, f"encoded_all_sb_{split}_ml@{max_length}_unlabel@{max_unlabeled}_lbd@{lbd}_mmr.pkl")
 
-        df_csv_path = os.path.join(base_dirpath, f"turl_cta_{split}_all.csv")
+        df_csv_path = os.path.join(base_dirpath, f"{split}.csv")
         
         if os.path.exists(encoded_df_path):
             print(f"Loading already processed {split} dataset from {encoded_df_path}")
@@ -636,9 +636,7 @@ class TURLRelExtTablewiseIterateMMRDataset(Dataset):
 
     def __init__(
             self,
-            cv: int,
             split: str,
-            src: str,  # train or test
             tokenizer: AutoTokenizer,
             max_length: int = 32,
             gt_only: bool = False,
@@ -655,7 +653,7 @@ class TURLRelExtTablewiseIterateMMRDataset(Dataset):
 
         
         encoded_df_path = os.path.join(base_dirpath, f"encoded_all_sb_{split}_ml@{max_length}_unlabel@{max_unlabeled}_lbd@{lbd}_mmr.pkl")
-        df_csv_path = os.path.join(base_dirpath, f"turl_cpa_{split}_all.csv")        
+        df_csv_path = os.path.join(base_dirpath, f"{split}.csv")        
         if os.path.exists(encoded_df_path):
             print(f"Loading already processed {split} dataset from {encoded_df_path}")
             with open(encoded_df_path, "rb") as f:
@@ -764,3 +762,40 @@ class TURLRelExtTablewiseIterateMMRDataset(Dataset):
             "cls_indexes": self.table_df.iloc[idx]["cls_indexes"].cpu(),
             "target_col_mask": self.table_df.iloc[idx]["target_col_mask"].cpu(),
         }
+        
+        
+class VerificationBinaryFastDataset(Dataset):
+    def __init__(
+            self,
+            data_path: str,
+            pos_ratio = None, # clone the negative samples
+            context = None,
+            ): 
+        data_raw = torch.load(data_path)
+        veri_label = data_raw["label"]
+        # veri_data = data_raw["data"]
+        # veri_cls_indexes = data_raw["cls_indexes"]
+        veri_embs = data_raw["embs"]
+        # veri_target_embs = data_raw["target_embs"]
+        # veri_logits = data_raw["logits"]
+        
+        self.neg_expand = int(1/pos_ratio)-1 if pos_ratio is not None else 1
+        self.veri_label = {}
+        self.veri_embs = {}
+
+        assert len(veri_label) == len(veri_embs)
+        self.veri_label = veri_label
+        self.veri_embs = veri_embs
+
+    def __len__(self):
+        return len(self.veri_embs)
+
+    def __getitem__(self, idx):
+        return {
+            # "data": self.veri_data[idx].reshape(-1),
+            "embs": self.veri_embs[idx].reshape(-1),
+            "label": self.veri_label[idx].reshape(-1),
+            # "logits": self.veri_logits[idx],
+            # "cls_indexes": self.veri_cls_indexes[idx], 
+        }
+        

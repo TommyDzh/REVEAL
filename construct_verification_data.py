@@ -7,7 +7,6 @@ import math
 import os
 import random
 from time import time
-import mlflow
 import numpy as np
 import pandas as pd
 from sklearn.metrics import confusion_matrix, f1_score
@@ -34,13 +33,11 @@ from src.dataset import (
     TURLColTypeTablewiseIterateMMRDataset, # WikiTable-CPA
 )
 
-from src.dataset import TableDataset, SupCLTableDataset, SemtableCVTablewiseDataset, GittablesColwiseDataset, GittablesTablewiseDataset
-from src.model import BertMultiPooler, BertForMultiOutputClassification, BertForMultiOutputClassificationColPopl, Verifier
-from src.model import SupCLforTable, UnsupCLforTable, lm_mp
-from src.utils import load_checkpoint, f1_score_multilabel, collate_fn, get_col_pred, ColPoplEvaluator
+from src.model import BertMultiPooler, BertForMultiOutputClassification
+from src.model import lm_mp
+from src.utils import load_checkpoint, f1_score_multilabel, collate_fn, get_col_pred
 from src.utils import task_num_class_dict
 from accelerate import DistributedDataParallelKwargs
-import wandb
 
 from argparse import Namespace
 import torch
@@ -106,7 +103,7 @@ if __name__ == "__main__":
     parser.add_argument("--comment", type=str, default="debug", help="to distinguish the runs")
     parser.add_argument(
         "--shortcut_name",
-        default="bert-base-uncased",
+        default="bert",
         type=str,
         help="Huggingface model shortcut name ",
     )
@@ -179,6 +176,7 @@ if __name__ == "__main__":
                             "gt-semtab22-schema-property-all",
                             "turl", "turl-re", 
                         ],
+                        default="gt-semtab22-dbpedia-all",
                         help="Task names}")     
     parser.add_argument("--warmup",
                         type=float,
@@ -214,10 +212,7 @@ if __name__ == "__main__":
                         help="e.g., by_table_t5_v1")
     parser.add_argument("--data_path",
                         type=str,
-                        default="./data")
-    parser.add_argument("--pretrained_ckpt_path",
-                        type=str,
-                        default="./model")    
+                        default="./data")   
 
     args = parser.parse_args()
     device = torch.device(args.gpu)
@@ -298,30 +293,20 @@ if __name__ == "__main__":
     ddp_kwargs = DistributedDataParallelKwargs(find_unused_parameters=True)
     accelerator = Accelerator(mixed_precision="no" if not args.fp16 else "fp16", kwargs_handlers=[ddp_kwargs])
 
-    ckpt_path = os.path.join(args.pretrained_ckpt_path, args.cl_tag)
-    # ckpt_path = '/efs/checkpoints/{}.pt'.format(args.cl_tag)
-    ckpt = torch.load(ckpt_path, map_location=device)
-    ckpt_hp = ckpt['hp']
-    print(ckpt_hp)
-
-    setattr(ckpt_hp, 'batch_size', args.batch_size)
-    setattr(ckpt_hp, 'hidden_dropout_prob', args.dropout_prob)
-    setattr(ckpt_hp, 'shortcut_name', args.shortcut_name)
-    setattr(ckpt_hp, 'num_labels', args.num_classes)
 
 
 
-    tokenizer = BertTokenizer.from_pretrained(shortcut_name)
+    tokenizer = BertTokenizer.from_pretrained(lm_mp[shortcut_name])
     padder = collate_fn(tokenizer.pad_token_id)
-    model = BertForMultiOutputClassification(ckpt_hp, device=device, 
-                                            lm=ckpt['hp'].lm, 
-                                            version="v1",
+    model = BertForMultiOutputClassification(args.num_classes, device=device, 
+                                            lm=lm_mp[shortcut_name], 
+                                            dropout_prob=args.dropout_prob,
                                             use_attention_mask=True)      
-    config = BertConfig.from_pretrained(lm_mp[ckpt['hp'].lm])
-    model.bert.pooler = BertMultiPooler(config.hidden_size, version="v1").to(device)
+    config = BertConfig.from_pretrained(lm_mp[shortcut_name])
+    model.bert.pooler = BertMultiPooler(config.hidden_size).to(device)
 
 
-    small_tag = "sp_semi1" if args.task == "gt-semtab22-schema-property-all" else "db_semi1"
+    
     lbd = 0.5
 
 
@@ -329,75 +314,120 @@ if __name__ == "__main__":
     best_state_dict = torch.load(args.best_dict_path, map_location=device)
     model.load_state_dict(best_state_dict, strict=False)
     model = model.to(device)
-
     if "gt-dbpedia" in task or "gt-schema" in task or "gt-semtab" in task:
+        small_tag = "sp_semi1" if args.task == "gt-semtab22-schema-property-all" else "db_semi1"
         dataset_cls = GittablesTablewiseIterateMMRDataset
         train_dataset_mmr = dataset_cls(
                                 cv=args.cv,
                                     split="train",
-                                    src=None,
                                     tokenizer=tokenizer,
                                     max_length=128,
                                     gt_only='all' not in task,
                                     device=device,
-                                    base_dirpath=os.path.join(args.data_path, "GitTables/semtab_gittables/2022"),
+                                    base_dirpath=os.path.join(args.data_path, args.task),
                                     small_tag=small_tag,
                                     max_unlabeled=8,
-                                    random_sample=True,
                                     lbd=0.5)
-        padder = collate_fn(tokenizer.pad_token_id)
-        train_dataloader_iter = DataLoader(train_dataset_mmr,
-                                        batch_size=1,
-                                    #   collate_fn=collate_fn)
-                                    collate_fn=padder)
-
-        lbd = 0.5
-        veri_dataset_mmr = dataset_cls(
+        valid_dataset_mmr = dataset_cls(
                                 cv=args.cv,
                                     split="valid",
-                                    src=None,
                                     tokenizer=tokenizer,
                                     max_length=128,
                                     gt_only='all' not in task,
                                     device=device,
-                                    base_dirpath=os.path.join(args.data_path, "GitTables/semtab_gittables/2022"),
+                                   base_dirpath=os.path.join(args.data_path, args.task),
                                     small_tag=small_tag,
                                     max_unlabeled=8,
-                                    random_sample=True,
                                     lbd=0.5)
-        padder = collate_fn(tokenizer.pad_token_id)
-        veri_dataloader_iter = DataLoader(veri_dataset_mmr,
-                                        batch_size=1,
-                                    #   collate_fn=collate_fn)
-                                    collate_fn=padder)
-        valid_dataloader_iter = DataLoader(veri_dataset_mmr,\
-                                        batch_size=1,
-                                    #   collate_fn=collate_fn)
-                                    collate_fn=padder)
-
         test_dataset_mmr = dataset_cls(
                                 cv=args.cv,
                                                 split="test",
-                                                src=None,
                                                 tokenizer=tokenizer,
                                                 max_length=128,
                                                 gt_only='all' not in task,
                                                 device=device,
-                                                base_dirpath=os.path.join(args.data_path, "GitTables/semtab_gittables/2022"),
+                                                base_dirpath=os.path.join(args.data_path, args.task),
                                                 small_tag=small_tag,
                                                 max_unlabeled=8,
-                                                random_sample=True,
                                                 lbd=0.5)
-        padder = collate_fn(tokenizer.pad_token_id)
-        test_dataloader = DataLoader(test_dataset_mmr,
-                                        batch_size=16,
-                                    #   collate_fn=collate_fn)
-                                    collate_fn=padder)
-        test_dataloader_iter = DataLoader(test_dataset_mmr,
-                                        batch_size=1,
-                                    #   collate_fn=collate_fn)
-                                    collate_fn=padder)
+    elif "sotab" in task.lower():
+        if "re" in task:
+            dataset_cls = SotabRelExtIterateMMRDataset
+        else:
+            dataset_cls = SotabTablewiseIterateMMRDataset
+        print("start load train dataset")
+        train_dataset_mmr = dataset_cls(split="train",
+                                    tokenizer=tokenizer,
+                                    max_length=max_length,
+                                    device=device,
+                                    max_unlabeled=args.max_unlabeled,
+                                    base_dirpath=os.path.join(args.data_path, args.task),
+                                    lbd=0.5,
+                                    )
+        print("start load valid dataset")
+        valid_dataset_mmr = dataset_cls(
+                                    split="valid",
+                                    tokenizer=tokenizer,
+                                    max_length=max_length,
+                                    device=device,
+                                    max_unlabeled=args.max_unlabeled,
+                                    base_dirpath=os.path.join(args.data_path, args.task),
+                                    lbd=0.5,
+                                    )
 
+        print("start load test dataset")
+        test_dataset_mmr = dataset_cls(
+                                    split="test",
+                                    tokenizer=tokenizer,
+                                    max_length=max_length,
+                                    device=device,
+                                    max_unlabeled=args.max_unlabeled,
+                                    base_dirpath=os.path.join(args.data_path, args.task),
+                                    lbd=0.5,
+                                    )
+    elif "turl" in task:
+        if task in ["turl"]:
+            dataset_cls = TURLColTypeTablewiseIterateMMRDataset
+        elif task in ["turl-re"]:
+            dataset_cls = TURLRelExtTablewiseIterateMMRDataset
+        else:
+            raise ValueError("turl tasks must be turl or turl-re.")
+        train_dataset_mmr = dataset_cls(
+                                    split="train",
+                        tokenizer=tokenizer,
+                        max_length=max_length,
+                        base_dirpath=os.path.join(args.data_path, args.task),
+                        device=device,
+                        max_unlabeled=args.max_unlabeled,
+                        lbd=0.5)
+        
+        valid_dataset_mmr = dataset_cls(
+                                    split="valid",
+                        tokenizer=tokenizer,
+                        max_length=max_length,
+                        base_dirpath=os.path.join(args.data_path, args.task),
+                        device=device,
+                        lbd=0.5)
+        test_dataset_mmr = dataset_cls(
+                                    split="test",
+                        tokenizer=tokenizer,
+                        max_length=max_length,
+                        base_dirpath=os.path.join(args.data_path, args.task),
+                        device=device,
+                        max_unlabeled=args.max_unlabeled,
+                        lbd=0.5)        
+    train_dataloader_iter = DataLoader(train_dataset_mmr,
+                                    batch_size=1,
+                                #   collate_fn=collate_fn)
+                                collate_fn=padder)
+    veri_dataloader_iter = DataLoader(valid_dataset_mmr,
+                                    batch_size=1,
+                                #   collate_fn=collate_fn)
+                                collate_fn=padder)
+    test_dataloader_iter = DataLoader(test_dataset_mmr,
+                                    batch_size=1,
+                                #   collate_fn=collate_fn)
+                                collate_fn=padder)
     # data check
     model.eval()
     if "popl" in task:
@@ -410,7 +440,7 @@ if __name__ == "__main__":
         ts_logits_list = []
     # Test
     with torch.no_grad():
-        for batch_idx, batch in enumerate(test_dataloader):
+        for batch_idx, batch in enumerate(test_dataloader_iter):
             batch["data"] = batch["data"].to(device)
             batch["label"] = batch["label"].to(device)
             cls_indexes = batch["cls_indexes"].reshape(-1).to(device)
@@ -518,6 +548,7 @@ if __name__ == "__main__":
     score_best = [] 
     start_idx = 0
     interval = 12000
+    depth=args.depth
     for threshold in [1.5]:
         print(f"*********************Training, Depth: {depth}****************************")
         ft_embs_test = []
@@ -861,7 +892,7 @@ if __name__ == "__main__":
         score_permutation = defaultdict(list)
         permutation_correctness = defaultdict(list)
         with torch.no_grad():
-            for batch_idx, batch in enumerate(valid_dataloader_iter):
+            for batch_idx, batch in enumerate(veri_dataloader_iter):
                 cls_indexes = torch.LongTensor([[0, batch["cls_indexes"].cpu().item()]]).to(device)
                 target_col_mask = batch["target_col_mask"].T
                 label_i = batch["label"].reshape(-1).cpu()
@@ -909,7 +940,7 @@ if __name__ == "__main__":
                         valid_label[batch_idx].append(torch.tensor(predict_temp == label_i).long()) # indicate whether the permutation is correct or not
                         valid_class[batch_idx].append(label_i)                
                 if batch_idx % 1000 == 0:
-                    print(f"{batch_idx}/{len(valid_dataloader_iter)}")
+                    print(f"{batch_idx}/{len(veri_dataloader_iter)}")
                     
                     
     import os

@@ -63,8 +63,26 @@ The original **SOTAB-CTA** and **SOTAB-CPA** datasets can be downloaded from the
     ```train
     python run_train_verification.py
     ```
-## Citation
-
-
+## 📌 Citation
+```
+@article{10.1145/3769823,
+  author = {Ding, Zhihao and Sun, Yongkang and Shi, Jieming},
+  title = {Retrieve-and-Verify: A Table Context Selection Framework for Accurate Column Annotations},
+  year = {2025},
+  issue_date = {December 2025},
+  publisher = {Association for Computing Machinery},
+  address = {New York, NY, USA},
+  volume = {3},
+  number = {6},
+  url = {https://doi.org/10.1145/3769823},
+  doi = {10.1145/3769823},
+  abstract = {Tables are a prevalent format for structured data, yet their metadata, such as semantic types and column relationships, is often incomplete or ambiguous. Column annotation tasks, including Column Type Annotation (CTA) and Column Property Annotation (CPA), address this by leveraging table context, which are critical for data management. Existing methods typically serialize all columns in a table into pretrained language models to incorporate context, but this coarse-grained approach often degrades performance in wide tables with many irrelevant or misleading columns. To address this, we propose a novel retrieve-and-verify context selection framework for accurate column annotation, introducing two methods: REVEAL and REVEAL+. In REVEAL, we design an efficient unsupervised retrieval technique to select compact, informative column contexts by balancing semantic relevance and diversity, and develop context-aware encoding techniques with role embeddings and target-context pair training to effectively differentiate target and context columns. To further improve performance, in REVEAL+, we design a verification model that refines the selected context by directly estimating its quality for specific annotation tasks. To achieve this, we formulate a novel column context verification problem as a classification task and then develop the verification model. Moreover, in REVEAL+, we develop a top-down verification inference technique to ensure efficiency by reducing the search space for high-quality context subsets from exponential to quadratic. Extensive experiments on six benchmark datasets demonstrate that our methods consistently outperform state-of-the-art baselines.},
+  journal = {Proc. ACM Manag. Data},
+  month = dec,
+  articleno = {358},
+  numpages = {27},
+  keywords = {column annotation, context selection, embeddings, table understanding}
+}
+```
 ## 🙏 Acknowledgement
 We acknowledge the open-sourced implementations of [Watchog](https://github.com/megagonlabs/watchog) and [Doduo](https://github.com/megagonlabs/doduo), which provide basic componenents partially used in our implementation.

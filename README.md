@@ -32,7 +32,7 @@ The following table summarizes the datasets used in our experiments:
 | WikiTable-CPA     | 55,970   | 121     | 306,265       | 62,954         | 2 / 38 / 5.5                |
 
 
-We make our processed data for all 6 datasets publicly available on [Huggingface Repo](https://huggingface.co/datasets/Tommy-DING/REVEAL).
+We make our processed data for all 6 datasets publicly available on 🤗 [Huggingface Repo](https://huggingface.co/datasets/Tommy-DING/table-column-annotation-benchmark).
 
 The original **SOTAB-CTA** and **SOTAB-CPA** datasets can be downloaded from the [official SOTAB repository](https://webdatacommons.org/structureddata/sotab/).
 
